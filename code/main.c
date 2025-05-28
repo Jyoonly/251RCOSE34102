@@ -21,13 +21,15 @@ typedef struct {
     int priority;
 
     int start_time;
-    int end_time;
+    int finish_time;
     int waiting_time;
     int turnaround_time;
 } PCB;
 
 
-/* ----------------------- 공용 출력 함수 ---------------------------*/
+// -----------------------------
+// 공용 출력 함수
+// -----------------------------
 // 생성된 프로세스 출력
 void print_created_list(PCB proc[], int n)
 {
@@ -41,23 +43,32 @@ void print_created_list(PCB proc[], int n)
 }
 // 간트차트 출력
 void print_gantt(const int timeline[], int tl_len, const char *tag)
-{
+{   
+    // // === 디버깅용 ===//
+    // printf("\n");
+    // for (int i = 0; i<tl_len; i++) {
+    //     printf("%d ", timeline[i]);
+    // }
+    // // ===============//
     printf("\n[Gantt : %s]\n|", tag);
 
     for (int i = 0; i < tl_len; ) {
         int pid  = timeline[i];
         int span = 1;
 
-        while (i + span < tl_len && timeline[i + span] == pid) span++;
+        while (i + span < tl_len && timeline[i + span] == pid){
+            span++;
+        }
 
-        if (pid)
+        if (pid){ // process
             printf(" P%-2d:%-2d |", pid, span);
-        else
+        }
+        else { // idle
             printf(" ID:%-2d |", span);
-
+        }
         i += span;
     }
-    puts("|");
+    printf("|");
 }
 // 디버그용 프로세스 상태 테이블
 void print_table(PCB proc[], int n)
@@ -90,142 +101,25 @@ void evaluate(PCB proc[], int n)
     printf("AVG Waiting : %.2f   AVG TAT : %.2f\n\n",
            wait_sum / n, tat_sum / n);
 }
-// -----------------------------
-// 비교 함수 타입 정의
-// -----------------------------
-typedef int (*CompareFunc)(Process, Process);
-
-
-// -----------------------------
-// 정렬 함수 및 비교 함수들
-// -----------------------------
-void sort_processes(Process arr[], int n, CompareFunc cmp) {
-    for (int i = 0; i < n-1; i++) {
-        for (int j = i+1; j < n; j++) {
-            if (cmp(arr[i], arr[j]) > 0) {
-                Process tmp = arr[i];
-                arr[i] = arr[j];
-                arr[j] = tmp;
-            }
-        }
-    }
-}
-
-int compare_by_arrival(Process a, Process b) {
-    return a.arrival_time - b.arrival_time;
-}
-
-int compare_by_burst(Process a, Process b) {
-    return a.burst_time - b.burst_time;
-}
-
-int compare_by_remaining(Process a, Process b) {
-    return a.remaining_time - b.remaining_time;
-}
-
-int compare_by_priority(Process a, Process b) {
-    return a.priority - b.priority;
-}
-// 함수 선언
-void create_processes(Process processes[], int num_processes);
-void config(Process processes[], int num_processes);
-// void fcfs(Process processes[], int num_processes);
-// void calculate_metrics(Process processes[], int num_processes);
-// void print_gantt_chart(Process processes[], int num_processes);
-
 
 // -----------------------------
 // 프로세스 생성
 // -----------------------------
-void create_processes(Process processes[], int num_processes) {
+void create_processes(PCB proc[], int num_processes) {
     srand(time(NULL)); // 난수 초기화
 
     for (int i = 0; i < num_processes; i++) {
-        processes[i].pid = i + 1;
-        // 랜덤한 arrival_time,burst_time, priority 생성
-        processes[i].arrival_time = rand() % 20; // 0~9 사이
-        processes[i].burst_time = rand() % 10 + 1; // 1~10 사이
-        processes[i].remaining_time = processes[i].burst_time;
-        processes[i].priority = rand() % num_processes + 1; // 1부터 num_processes 사이의 우선순위
+        proc[i].pid = i + 1;
+        proc[i].arrival_time = rand() % 10; // 0~19 사이
+        proc[i].cpu_burst_total = rand() % 10 + 1; // 1~10 사이
+        proc[i].cpu_remaining = proc[i].cpu_burst_total;
+        proc[i].priority = rand() % num_processes + 1; // 1부터 num_processes 사이의 우선순위
 
         // 나머지는 초기화
-        processes[i].start_time = -1;
-        processes[i].end_time = -1;
-        processes[i].waiting_time = 0;
-        processes[i].turnaround_time = 0;
-    }
-
-    printf("\n[created processes information]\n");
-    printf("PID | Arrival | Burst | Priority\n");
-    for (int i = 0; i < num_processes; i++) {
-        printf("%3d | %7d | %5d | %8d\n",
-            processes[i].pid,
-            processes[i].arrival_time,
-            processes[i].burst_time,
-            processes[i].priority);
-    }
-}
-
-// -----------------------------
-// 프로세스 생성 (테스트용. 직접입력)
-// -----------------------------
-void create_test_processes(Process processes[], int *num_processes) {
-    *num_processes = 3;
-
-    processes[0].pid = 1;
-    processes[0].arrival_time = 0;
-    processes[0].burst_time = 3;
-
-    processes[1].pid = 2;
-    processes[1].arrival_time = 5;
-    processes[1].burst_time = 6;
-
-    processes[2].pid = 3;
-    processes[2].arrival_time = 6;
-    processes[2].burst_time = 4;
-
-    for (int i = 0; i < *num_processes; i++) {
-        processes[i].remaining_time = processes[i].burst_time;
-        processes[i].priority = i + 1; // 임의의 값
-        processes[i].start_time = -1;
-        processes[i].end_time = -1;
-        processes[i].waiting_time = 0;
-        processes[i].turnaround_time = 0;
-    }
-    printf("\n[created processes information]\n");
-    printf("PID | Arrival | Burst | Priority\n");
-    for (int i = 0; i < *num_processes; i++) {
-        printf("%3d | %7d | %5d | %8d\n",
-            processes[i].pid,
-            processes[i].arrival_time,
-            processes[i].burst_time,
-            processes[i].priority);
-    }
-}
-
-
-// config 함수
-void config(Process processes[], int num_processes) {
-    // 간단한 버블 정렬 (arrival_time 기준)
-    for (int i = 0; i < num_processes - 1; i++) {
-        for (int j = 0; j < num_processes - i - 1; j++) {
-            if (processes[j].arrival_time > processes[j + 1].arrival_time) {
-                // swap
-                Process temp = processes[j];
-                processes[j] = processes[j + 1];
-                processes[j + 1] = temp;
-            }
-        }
-    }
-    // 출력부분. 디버깅용으로 둠. 추후 삭제
-    printf("\n[Ready Queue Sorted by Arrival Time]\n");
-    printf("PID | Arrival | Burst | Priority\n");
-    for (int i = 0; i < num_processes; i++) {
-        printf("%3d | %7d | %5d | %8d\n",
-            processes[i].pid,
-            processes[i].arrival_time,
-            processes[i].burst_time,
-            processes[i].priority);
+        proc[i].start_time = -1;
+        proc[i].finish_time = -1;
+        proc[i].waiting_time = 0;
+        proc[i].turnaround_time = 0;
     }
 }
 
@@ -236,217 +130,368 @@ void config(Process processes[], int num_processes) {
 // -----------------------------
 // 1. FCFS 
 // -----------------------------
-void schedule_fcfs(Process processes[], int num_processes) {
-    // arrival_time 기준으로 정렬
-    sort_processes(processes, num_processes, compare_by_arrival);
-    
-    int current_time = 0;
-    for (int i = 0; i < num_processes; i++) {
-        // idle 시간 처리
-        if (current_time < processes[i].arrival_time) {
-            current_time = processes[i].arrival_time;
-        }
-        processes[i].start_time = current_time; // 시작 시간
-        processes[i].end_time = current_time + processes[i].burst_time; // 종료 시간
-        processes[i].waiting_time = processes[i].start_time - processes[i].arrival_time; // 대기 시간
-        processes[i].turnaround_time = processes[i].end_time - processes[i].arrival_time; // 반환 시간
+void schedule_fcfs(PCB proc[], int n) {
+    int timeline[MAX_TIME] = {0};
+    int tl_len = 0;
 
-        current_time = processes[i].end_time; // 현재 시간 업데이트
+    /* 도착시간 오름차순 정렬(버블) */
+    for (int i = 0; i < n - 1; i++)
+        for (int j = i + 1; j < n; j++)
+            if (proc[i].arrival_time > proc[j].arrival_time) {
+                PCB tmp = proc[i];
+                proc[i] = proc[j];
+                proc[j] = tmp;
+            }
+
+    int current_time = 0;
+
+    for (int i = 0; i < n; i++) {
+        /* CPU가 놀면 idle 기록 */
+        while (current_time < proc[i].arrival_time) {
+            timeline[tl_len++] = 0;
+            current_time++;
+        }
+
+        proc[i].start_time = current_time;
+
+        for (int t = 0; t < proc[i].cpu_burst_total; t++) {
+            timeline[tl_len++] = proc[i].pid;
+            current_time++;
+        }
+
+        proc[i].finish_time = current_time;
+        proc[i].waiting_time = proc[i].start_time - proc[i].arrival_time;
+        proc[i].turnaround_time = proc[i].finish_time - proc[i].arrival_time;
     }
+
+    print_gantt(timeline, tl_len, "FCFS");
+    print_table(proc, n);
+    evaluate(proc, n);
 }
 
 // -----------------------------
 // 2. SJF (non-preemptive)
 // -----------------------------
-void schedule_sjf(Process processes[], int num_processes) {
-    int completed = 0;
+void schedule_sjf_np(PCB proc[], int n)
+{
+    int timeline[MAX_TIME] = {0};
+    int tl_len = 0;
+
+    bool finished[MAX_PROCESSES] = {false};
+
+    int completed    = 0;
     int current_time = 0;
-    int is_completed[MAX_PROCESSES] = {0};
 
-    while (completed < num_processes) {
-        int idx = -1;
-        int min_burst = 1e9;
+    while (completed < n) {
+        int sel_index = -1;
+        int best_burst= INF;
 
-        for (int i = 0; i < num_processes; i++) {
-            if (processes[i].arrival_time <= current_time && !is_completed[i]) {
-                if (processes[i].burst_time < min_burst) {
-                    min_burst = processes[i].burst_time;
-                    idx = i;
-                } else if (processes[i].burst_time == min_burst) {
-                    // 도착 시간이 빠른 쪽 우선
-                    if (processes[i].arrival_time < processes[idx].arrival_time) {
-                        idx = i;
-                    }
-                }
+        for (int i = 0; i < n; i++) {
+            if (!finished[i] &&
+                proc[i].arrival_time <= current_time &&
+                proc[i].cpu_burst_total < best_burst)
+            {
+                best_burst = proc[i].cpu_burst_total;
+                sel_index  = i;
             }
         }
 
-        if (idx != -1) {
-            processes[idx].start_time = current_time;
-            processes[idx].end_time = current_time + processes[idx].burst_time;
-            processes[idx].waiting_time = current_time - processes[idx].arrival_time;
-            processes[idx].turnaround_time = processes[idx].end_time - processes[idx].arrival_time;
-
-            current_time = processes[idx].end_time;
-            is_completed[idx] = 1;
-            completed++;
-        } else {
-            current_time++; // idle
+        if (sel_index == -1) {
+            timeline[tl_len++] = 0;
+            current_time++;
+            continue;
         }
+
+        if (proc[sel_index].start_time == -1)
+            proc[sel_index].start_time = current_time;
+
+        for (int t = 0; t < proc[sel_index].cpu_burst_total; t++) {
+            timeline[tl_len++] = proc[sel_index].pid;
+            current_time++;
+        }
+
+        proc[sel_index].finish_time = current_time;
+        proc[sel_index].waiting_time =
+            proc[sel_index].start_time - proc[sel_index].arrival_time;
+        proc[sel_index].turnaround_time =
+            proc[sel_index].finish_time - proc[sel_index].arrival_time;
+
+        finished[sel_index] = true;
+        completed++;
     }
+
+    print_gantt(timeline, tl_len, "SJF (NP)");
+    print_table(proc, n);
+    evaluate(proc, n);
 }
 // -----------------------------
 // 3. Priority (non-preemptive)
 // -----------------------------
-void schedule_priority(Process processes[], int num_processes) {
+void schedule_priority_np(PCB proc[], int n)
+{
+    int timeline[MAX_TIME] = {0};
+    int tl_len = 0;
+
+    bool finished[MAX_PROCESSES] = {false};
+
+    int completed    = 0;
     int current_time = 0;
-    int completed = 0;
-    int is_completed[MAX_PROCESSES] = {0};
 
-    // 최초 도착시간으로 초기화
-    int earliest = 1e9;
-    for (int i = 0; i < num_processes; i++) {
-        if (processes[i].arrival_time < earliest)
-            earliest = processes[i].arrival_time;
-    }
-    current_time = earliest;
+    while (completed < n) {
+        int sel_index = -1;
+        int best_pri  = INF;
 
-    while (completed < num_processes) {
-        int idx = -1;
-        int best_priority = 1e9;
-
-        for (int i = 0; i < num_processes; i++) {
-            if (!is_completed[i] && processes[i].arrival_time <= current_time) {
-                if (processes[i].priority < best_priority ||
-                   (processes[i].priority == best_priority &&
-                    processes[i].arrival_time < processes[idx].arrival_time)) {
-                    best_priority = processes[i].priority;
-                    idx = i;
-                }
+        for (int i = 0; i < n; i++) {
+            if (!finished[i] &&
+                proc[i].arrival_time <= current_time &&
+                proc[i].priority < best_pri)
+            {
+                best_pri  = proc[i].priority;
+                sel_index = i;
             }
         }
 
-        if (idx != -1) {
-            processes[idx].start_time = current_time;
-            processes[idx].end_time = current_time + processes[idx].burst_time;
-            processes[idx].waiting_time = processes[idx].start_time - processes[idx].arrival_time;
-            processes[idx].turnaround_time = processes[idx].end_time - processes[idx].arrival_time;
-
-            current_time = processes[idx].end_time;
-            is_completed[idx] = 1;
-            completed++;
-        } else {
-            current_time++; // idle
-        }
-    }
-}
-
-
-// -----------------------------
-// 4. RR
-// -----------------------------
-void schedule_rr(Process processes[], int num_processes, int time_quantum) {
-    int current_time = 0;
-    int completed = 0;
-    int queue[MAX_PROCESSES];
-    int front = 0, rear = 0;
-    int visited[MAX_PROCESSES] = {0};
-
-    // 초기 도착 프로세스 삽입
-    for (int i = 0; i < num_processes; i++) {
-        if (processes[i].arrival_time == 0) {
-            queue[rear++] = i;
-            visited[i] = 1;
-        }
-    }
-
-    while (completed < num_processes) {
-        if (front == rear) {
+        if (sel_index == -1) {
+            timeline[tl_len++] = 0;
             current_time++;
-            for (int i = 0; i < num_processes; i++) {
-                if (!visited[i] && processes[i].arrival_time <= current_time) {
-                    queue[rear++] = i;
-                    visited[i] = 1;
-                }
-            }
             continue;
         }
 
-        int idx = queue[front++];
+        if (proc[sel_index].start_time == -1)
+            proc[sel_index].start_time = current_time;
 
-        if (processes[idx].start_time == -1) {
-            processes[idx].start_time = current_time;
+        for (int t = 0; t < proc[sel_index].cpu_burst_total; t++) {
+            timeline[tl_len++] = proc[sel_index].pid;
+            current_time++;
         }
 
-        int exec_time = (processes[idx].remaining_time > time_quantum) ?
-                        time_quantum : processes[idx].remaining_time;
+        proc[sel_index].finish_time     = current_time;
+        proc[sel_index].waiting_time    =
+            proc[sel_index].start_time - proc[sel_index].arrival_time;
+        proc[sel_index].turnaround_time =
+            proc[sel_index].finish_time - proc[sel_index].arrival_time;
 
-        current_time += exec_time;
-        processes[idx].remaining_time -= exec_time;
+        finished[sel_index] = true;
+        completed++;
+    }
 
-        // 새로 도착한 프로세스들 큐에 추가
-        for (int i = 0; i < num_processes; i++) {
-            if (!visited[i] && processes[i].arrival_time <= current_time) {
-                queue[rear++] = i;
-                visited[i] = 1;
-            }
+    print_gantt(timeline, tl_len, "Priority (NP)");
+    print_table(proc, n);
+    evaluate(proc, n);
+}
+
+// -----------------------------
+// 4. RR (Q=2)
+// -----------------------------
+void schedule_rr(PCB proc[], int n, int quantum)
+{
+    int timeline[MAX_TIME] = {0};
+    int tl_len = 0;
+
+    int ready_q[MAX_PROCESSES];
+    int q_front = 0, q_rear = 0;
+
+    bool visited[MAX_PROCESSES] = {false};
+
+    int completed    = 0;
+    int current_time = 0;
+
+    // 0 tick 에 도착한 프로세스 enqueue 
+    for (int i = 0; i < n; i++)
+        if (proc[i].arrival_time == 0) {
+            ready_q[q_rear++] = i;
+            visited[i] = true;
         }
 
-        if (processes[idx].remaining_time > 0) {
-            queue[rear++] = idx; // 다시 큐 뒤로
-        } else {
-            processes[idx].end_time = current_time;
-            processes[idx].turnaround_time = processes[idx].end_time - processes[idx].arrival_time;
-            processes[idx].waiting_time = processes[idx].turnaround_time - processes[idx].burst_time;
+    while (completed < n) {
+        if (q_front == q_rear) { // Ready 큐가 비어있으면 idle 기록
+            timeline[tl_len++] = 0;
+            current_time++;
+            
+            for (int i = 0; i < n; i++)
+                if (!visited[i] && proc[i].arrival_time == current_time) {
+                    ready_q[q_rear++] = i;
+                    visited[i]        = true;
+                }
+            continue;
+        }
+
+        int sel_index = ready_q[q_front++];
+
+        if (proc[sel_index].start_time == -1)
+            proc[sel_index].start_time = current_time;
+
+        int exec = (proc[sel_index].cpu_remaining > quantum)
+                   ? quantum
+                   : proc[sel_index].cpu_remaining;
+
+        for (int t = 0; t < exec; t++) {
+            timeline[tl_len++] = proc[sel_index].pid;
+            proc[sel_index].cpu_remaining--;
+            current_time++;
+
+            // tick 중간 도착 즉시 Ready 큐 삽입 
+            for (int i = 0; i < n; i++)
+                if (!visited[i] && proc[i].arrival_time == current_time) {
+                    ready_q[q_rear++] = i;
+                    visited[i] = true;
+                }
+        }
+
+        if (proc[sel_index].cpu_remaining > 0)
+            ready_q[q_rear++] = sel_index; 
+        else {
+            proc[sel_index].finish_time = current_time;
+            proc[sel_index].turnaround_time =
+                proc[sel_index].finish_time - proc[sel_index].arrival_time;
+            proc[sel_index].waiting_time =
+                proc[sel_index].turnaround_time - proc[sel_index].cpu_burst_total;
             completed++;
         }
     }
+
+    print_gantt(timeline, tl_len, "Round-Robin(Q=2)");
+    print_table(proc, n);
+    evaluate(proc, n);
+}
+
+// -----------------------------
+// 5. SJF (preemptive)
+// -----------------------------
+void schedule_sjf_p(PCB proc[], int n)
+{
+    int timeline[MAX_TIME] = {0};
+    int tl_len = 0;
+
+    int completed    = 0;
+    int current_time = 0;
+
+    while (completed < n) {
+        int sel_index = -1;
+        int best_rem  = INF;
+
+        for (int i = 0; i < n; i++)
+            if (proc[i].arrival_time <= current_time &&
+                proc[i].cpu_remaining > 0 &&
+                proc[i].cpu_remaining < best_rem)
+            {
+                best_rem  = proc[i].cpu_remaining;
+                sel_index = i;
+            }
+
+        if (sel_index == -1) {
+            timeline[tl_len++] = 0;
+            current_time++;
+            continue;
+        }
+
+        if (proc[sel_index].start_time == -1)
+            proc[sel_index].start_time = current_time;
+
+        timeline[tl_len++] = proc[sel_index].pid;  /* 1 tick 실행 */
+        proc[sel_index].cpu_remaining--;
+        current_time++;
+
+        if (proc[sel_index].cpu_remaining == 0) {
+            proc[sel_index].finish_time = current_time;
+            proc[sel_index].turnaround_time =
+                proc[sel_index].finish_time - proc[sel_index].arrival_time;
+            proc[sel_index].waiting_time =
+                proc[sel_index].turnaround_time - proc[sel_index].cpu_burst_total;
+            completed++;
+        }
+    }
+
+    print_gantt(timeline, tl_len, "SJF (Preemptive)");
+    print_table(proc, n);
+    evaluate(proc, n);
+}
+
+// -----------------------------
+// 6. Priority (preemptive)
+// -----------------------------
+void schedule_priority_p(PCB proc[], int n)
+{
+    int timeline[MAX_TIME] = {0};
+    int tl_len = 0;
+
+    int completed    = 0;
+    int current_time = 0;
+
+    while (completed < n) {
+        int sel_index = -1;
+        int best_pri  = INF;
+
+        for (int i = 0; i < n; i++)
+            if (proc[i].arrival_time <= current_time &&
+                proc[i].cpu_remaining > 0 &&
+                proc[i].priority < best_pri)
+            {
+                best_pri  = proc[i].priority;
+                sel_index = i;
+            }
+
+        if (sel_index == -1) {
+            timeline[tl_len++] = 0;
+            current_time++;
+            continue;
+        }
+
+        if (proc[sel_index].start_time == -1)
+            proc[sel_index].start_time = current_time;
+
+        timeline[tl_len++] = proc[sel_index].pid;  /* 1 tick 실행 */
+        proc[sel_index].cpu_remaining--;
+        current_time++;
+
+        if (proc[sel_index].cpu_remaining == 0) {
+            proc[sel_index].finish_time = current_time;
+            proc[sel_index].turnaround_time =
+                proc[sel_index].finish_time - proc[sel_index].arrival_time;
+            proc[sel_index].waiting_time =
+                proc[sel_index].turnaround_time - proc[sel_index].cpu_burst_total;
+            completed++;
+        }
+    }
+
+    print_gantt(timeline, tl_len, "Priority (Preemptive)");
+    print_table(proc, n);
+    evaluate(proc, n);
 }
 
 // -----------------------------
 // 메인 함수
 // -----------------------------
 int main() {
-    Process processes[MAX_PROCESSES];
-    int num_processes;
+    PCB original[MAX_PROCESSES];
+    PCB work[MAX_PROCESSES];
+
+    int num_processes = 0;
 
     printf("Number of processes?: ");
     scanf("%d", &num_processes);
 
     // Process 생성
-    create_processes(processes, num_processes);
-    //create_test_processes(processes, &num_processes);
-    //config(processes, num_processes);
+    create_processes(original, num_processes);
+    print_created_list(original, num_processes);
 
-    // // FCFS 스케줄링
-    // schedule_fcfs(processes, num_processes);
-    // print_gantt_chart(processes, num_processes);
-    // print_gantt_chart_with_idle_sorted(processes, num_processes);
-    // print_process_table(processes, num_processes);
-    // evaluation(processes, num_processes);
+    memcpy(work, original, sizeof(PCB) * num_processes);
+    schedule_fcfs(work, num_processes);
 
-    // // SJF 스케줄링(non-preemptive)
-    // schedule_sjf(processes, num_processes);
-    // print_gantt_chart(processes, num_processes);
-    // print_gantt_chart_with_idle_sorted(processes, num_processes);
-    // print_process_table(processes, num_processes);
-    // evaluation(processes, num_processes);
+    memcpy(work, original, sizeof(PCB) * num_processes);
+    schedule_sjf_np(work, num_processes);
 
-    // // Priority 스케줄링(non-preemptive)
-    // schedule_priority(processes, num_processes);
-    // print_gantt_chart(processes, num_processes);
-    // print_gantt_chart_with_idle_sorted(processes, num_processes);
-    // print_process_table(processes, num_processes);
-    // evaluation(processes, num_processes);
+    memcpy(work, original, sizeof(PCB) * num_processes);
+    schedule_priority_np(work, num_processes);
 
-    // RR 스케줄링
-    schedule_rr(processes, num_processes, 2); // Time Quantum = 2
-    print_gantt_chart(processes, num_processes);
-    print_gantt_chart_with_idle_sorted(processes, num_processes);
-    print_process_table(processes, num_processes);
-    evaluation(processes, num_processes);
+    memcpy(work, original, sizeof(PCB) * num_processes);
+    schedule_rr(work, num_processes, RR_QUANTUM);
+
+    memcpy(work, original, sizeof(PCB) * num_processes);
+    schedule_sjf_p(work, num_processes);
+
+    memcpy(work, original, sizeof(PCB) * num_processes);
+    schedule_priority_p(work, num_processes);
+
     return 0;
 }
-
-
-// 모든 알고리즘을 반복시행하고, 간트차트를 그리고, 한번에 evaluate 하는 함수를 하나 제작하는게 나으려나...? 흠
