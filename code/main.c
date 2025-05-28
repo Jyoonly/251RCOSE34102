@@ -76,7 +76,7 @@ void create_processes(Process processes[], int num_processes) {
     for (int i = 0; i < num_processes; i++) {
         processes[i].pid = i + 1;
         // 랜덤한 arrival_time,burst_time, priority 생성
-        processes[i].arrival_time = rand() % 50; // 0~9 사이
+        processes[i].arrival_time = rand() % 20; // 0~9 사이
         processes[i].burst_time = rand() % 10 + 1; // 1~10 사이
         processes[i].remaining_time = processes[i].burst_time;
         processes[i].priority = rand() % num_processes + 1; // 1부터 num_processes 사이의 우선순위
@@ -188,25 +188,159 @@ void schedule_fcfs(Process processes[], int num_processes) {
     }
 }
 
+// -----------------------------
+// 2. SJF (non-preemptive)
+// -----------------------------
+void schedule_sjf(Process processes[], int num_processes) {
+    int completed = 0;
+    int current_time = 0;
+    int is_completed[MAX_PROCESSES] = {0};
+
+    while (completed < num_processes) {
+        int idx = -1;
+        int min_burst = 1e9;
+
+        for (int i = 0; i < num_processes; i++) {
+            if (processes[i].arrival_time <= current_time && !is_completed[i]) {
+                if (processes[i].burst_time < min_burst) {
+                    min_burst = processes[i].burst_time;
+                    idx = i;
+                } else if (processes[i].burst_time == min_burst) {
+                    // 도착 시간이 빠른 쪽 우선
+                    if (processes[i].arrival_time < processes[idx].arrival_time) {
+                        idx = i;
+                    }
+                }
+            }
+        }
+
+        if (idx != -1) {
+            processes[idx].start_time = current_time;
+            processes[idx].end_time = current_time + processes[idx].burst_time;
+            processes[idx].waiting_time = current_time - processes[idx].arrival_time;
+            processes[idx].turnaround_time = processes[idx].end_time - processes[idx].arrival_time;
+
+            current_time = processes[idx].end_time;
+            is_completed[idx] = 1;
+            completed++;
+        } else {
+            current_time++; // idle
+        }
+    }
+}
+// -----------------------------
+// 3. Priority (non-preemptive)
+// -----------------------------
+void schedule_priority(Process processes[], int num_processes) {
+    int current_time = 0;
+    int completed = 0;
+    int is_completed[MAX_PROCESSES] = {0};
+
+    // 최초 도착시간으로 초기화
+    int earliest = 1e9;
+    for (int i = 0; i < num_processes; i++) {
+        if (processes[i].arrival_time < earliest)
+            earliest = processes[i].arrival_time;
+    }
+    current_time = earliest;
+
+    while (completed < num_processes) {
+        int idx = -1;
+        int best_priority = 1e9;
+
+        for (int i = 0; i < num_processes; i++) {
+            if (!is_completed[i] && processes[i].arrival_time <= current_time) {
+                if (processes[i].priority < best_priority ||
+                   (processes[i].priority == best_priority &&
+                    processes[i].arrival_time < processes[idx].arrival_time)) {
+                    best_priority = processes[i].priority;
+                    idx = i;
+                }
+            }
+        }
+
+        if (idx != -1) {
+            processes[idx].start_time = current_time;
+            processes[idx].end_time = current_time + processes[idx].burst_time;
+            processes[idx].waiting_time = processes[idx].start_time - processes[idx].arrival_time;
+            processes[idx].turnaround_time = processes[idx].end_time - processes[idx].arrival_time;
+
+            current_time = processes[idx].end_time;
+            is_completed[idx] = 1;
+            completed++;
+        } else {
+            current_time++; // idle
+        }
+    }
+}
+
+
+// -----------------------------
+// 4. RR
+// -----------------------------
+void schedule_rr(Process processes[], int num_processes, int time_quantum) {
+    int current_time = 0;
+    int completed = 0;
+    int queue[MAX_PROCESSES];
+    int front = 0, rear = 0;
+    int visited[MAX_PROCESSES] = {0};
+
+    // 초기 도착 프로세스 삽입
+    for (int i = 0; i < num_processes; i++) {
+        if (processes[i].arrival_time == 0) {
+            queue[rear++] = i;
+            visited[i] = 1;
+        }
+    }
+
+    while (completed < num_processes) {
+        if (front == rear) {
+            current_time++;
+            for (int i = 0; i < num_processes; i++) {
+                if (!visited[i] && processes[i].arrival_time <= current_time) {
+                    queue[rear++] = i;
+                    visited[i] = 1;
+                }
+            }
+            continue;
+        }
+
+        int idx = queue[front++];
+
+        if (processes[idx].start_time == -1) {
+            processes[idx].start_time = current_time;
+        }
+
+        int exec_time = (processes[idx].remaining_time > time_quantum) ?
+                        time_quantum : processes[idx].remaining_time;
+
+        current_time += exec_time;
+        processes[idx].remaining_time -= exec_time;
+
+        // 새로 도착한 프로세스들 큐에 추가
+        for (int i = 0; i < num_processes; i++) {
+            if (!visited[i] && processes[i].arrival_time <= current_time) {
+                queue[rear++] = i;
+                visited[i] = 1;
+            }
+        }
+
+        if (processes[idx].remaining_time > 0) {
+            queue[rear++] = idx; // 다시 큐 뒤로
+        } else {
+            processes[idx].end_time = current_time;
+            processes[idx].turnaround_time = processes[idx].end_time - processes[idx].arrival_time;
+            processes[idx].waiting_time = processes[idx].turnaround_time - processes[idx].burst_time;
+            completed++;
+        }
+    }
+}
 
 // -----------------------------
 // Gantt Chart 출력
 // -----------------------------
 void print_gantt_chart(Process processes[], int num_processes) {
     printf("\n[Gantt Chart]\n|");
-    for (int i = 0; i < num_processes; i++) {
-        printf("  P%d  |", processes[i].pid);
-    }
-    printf("\n");
-
-    printf("%d", processes[0].start_time);
-    for (int i = 0; i < num_processes; i++) {
-        printf("     %2d", processes[i].end_time);
-    }
-    printf("\n");
-}
-void print_gantt_chart_with_idle(Process processes[], int num_processes) {
-    printf("\n[Gantt Chart with Idle Time]\n|");
 
     int time_cursor = processes[0].start_time;
 
@@ -238,6 +372,51 @@ void print_gantt_chart_with_idle(Process processes[], int num_processes) {
     printf("\n");
 }
 
+void print_gantt_chart_with_idle_sorted(Process processes[], int num_processes) {
+    Process sorted[MAX_PROCESSES];
+    for (int i = 0; i < num_processes; i++) {
+        sorted[i] = processes[i];
+    }
+
+    // start_time 기준 정렬
+    for (int i = 0; i < num_processes - 1; i++) {
+        for (int j = i + 1; j < num_processes; j++) {
+            if (sorted[i].start_time > sorted[j].start_time) {
+                Process temp = sorted[i];
+                sorted[i] = sorted[j];
+                sorted[j] = temp;
+            }
+        }
+    }
+
+    printf("\n[Gantt Chart (start_time order)]\n|");
+    int time_cursor = sorted[0].start_time;
+
+    for (int i = 0; i < num_processes; i++) {
+        if (time_cursor < sorted[i].start_time) {
+            printf(" Idle |");
+            time_cursor = sorted[i].start_time;
+        }
+
+        printf("  P%d  |", sorted[i].pid);
+        time_cursor = sorted[i].end_time;
+    }
+
+    // 시간 출력
+    printf("\n%d", sorted[0].start_time);
+    time_cursor = sorted[0].start_time;
+    for (int i = 0; i < num_processes; i++) {
+        if (time_cursor < sorted[i].start_time) {
+            printf("     %2d", sorted[i].start_time);
+            time_cursor = sorted[i].start_time;
+        }
+        printf("     %2d", sorted[i].end_time);
+        time_cursor = sorted[i].end_time;
+    }
+    printf("\n");
+}
+
+
 // -----------------------------
 // Evaluate 함수
 // -----------------------------
@@ -258,6 +437,23 @@ void evaluation(Process processes[], int num_processes) {
     printf("Average Turnaround Time  : %.2f\n", avg_turnaround_time);
 }
 
+void print_process_table(Process processes[], int num_processes) {
+    printf("\n[Process Status Table]\n");
+    printf("PID | Arrival | Burst | Start | End  | Waiting | Turnaround | Priority\n");
+    printf("----+---------+-------+-------+------+---------+------------+---------\n");
+
+    for (int i = 0; i < num_processes; i++) {
+        printf("%3d | %7d | %5d | %5d | %4d | %7d | %10d | %8d\n",
+            processes[i].pid,
+            processes[i].arrival_time,
+            processes[i].burst_time,
+            processes[i].start_time,
+            processes[i].end_time,
+            processes[i].waiting_time,
+            processes[i].turnaround_time,
+            processes[i].priority);
+    }
+}
 
 // -----------------------------
 // 메인 함수
@@ -274,10 +470,35 @@ int main() {
     //create_test_processes(processes, &num_processes);
     //config(processes, num_processes);
 
-    // FCFS 스케줄링
-    schedule_fcfs(processes, num_processes);
+    // // FCFS 스케줄링
+    // schedule_fcfs(processes, num_processes);
+    // print_gantt_chart(processes, num_processes);
+    // print_gantt_chart_with_idle_sorted(processes, num_processes);
+    // print_process_table(processes, num_processes);
+    // evaluation(processes, num_processes);
+
+    // // SJF 스케줄링(non-preemptive)
+    // schedule_sjf(processes, num_processes);
+    // print_gantt_chart(processes, num_processes);
+    // print_gantt_chart_with_idle_sorted(processes, num_processes);
+    // print_process_table(processes, num_processes);
+    // evaluation(processes, num_processes);
+
+    // // Priority 스케줄링(non-preemptive)
+    // schedule_priority(processes, num_processes);
+    // print_gantt_chart(processes, num_processes);
+    // print_gantt_chart_with_idle_sorted(processes, num_processes);
+    // print_process_table(processes, num_processes);
+    // evaluation(processes, num_processes);
+
+    // RR 스케줄링
+    schedule_rr(processes, num_processes, 2); // Time Quantum = 2
     print_gantt_chart(processes, num_processes);
-    print_gantt_chart_with_idle(processes, num_processes);
+    print_gantt_chart_with_idle_sorted(processes, num_processes);
+    print_process_table(processes, num_processes);
     evaluation(processes, num_processes);
     return 0;
 }
+
+
+// 모든 알고리즘을 반복시행하고, 간트차트를 그리고, 한번에 evaluate 하는 함수를 하나 제작하는게 나으려나...? 흠
