@@ -2,27 +2,94 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <time.h>
 
 #define MAX_PROCESSES 100
-
+#define MAX_TIME 500
+#define RR_QUANTUM 2
+#define INF 1e9
 // -----------------------------
 // 구조체 정의
 // -----------------------------
 typedef struct { 
     int pid;
+
     int arrival_time;
-    int burst_time;
-    int remaining_time;
+    int cpu_burst_total;
+    int cpu_remaining;
     int priority;
+
     int start_time;
     int end_time;
     int waiting_time;
     int turnaround_time;
-    // I/O 관련은 추후 추가
-} Process;
+} PCB;
 
 
+/* ----------------------- 공용 출력 함수 ---------------------------*/
+// 생성된 프로세스 출력
+void print_created_list(PCB proc[], int n)
+{
+    puts("\n[Created Processes]");
+    puts("PID | Arrival | Burst | Priority");
+
+    for (int i = 0; i < n; i++)
+        printf("%3d | %7d | %5d | %8d\n",
+               proc[i].pid, proc[i].arrival_time,
+               proc[i].cpu_burst_total, proc[i].priority);
+}
+// 간트차트 출력
+void print_gantt(const int timeline[], int tl_len, const char *tag)
+{
+    printf("\n[Gantt : %s]\n|", tag);
+
+    for (int i = 0; i < tl_len; ) {
+        int pid  = timeline[i];
+        int span = 1;
+
+        while (i + span < tl_len && timeline[i + span] == pid) span++;
+
+        if (pid)
+            printf(" P%-2d:%-2d |", pid, span);
+        else
+            printf(" ID:%-2d |", span);
+
+        i += span;
+    }
+    puts("|");
+}
+// 디버그용 프로세스 상태 테이블
+void print_table(PCB proc[], int n)
+{
+    puts("\n[Process Table]");
+    puts("PID | Arr | Burst | Start | End | Wait | TAT | Pri");
+
+    for (int i = 0; i < n; i++)
+        printf("%3d | %3d | %5d | %5d | %3d | %4d | %3d | %3d\n",
+               proc[i].pid,
+               proc[i].arrival_time,
+               proc[i].cpu_burst_total,
+               proc[i].start_time,
+               proc[i].finish_time,
+               proc[i].waiting_time,
+               proc[i].turnaround_time,
+               proc[i].priority);
+}
+
+// 평가용 함수
+void evaluate(PCB proc[], int n)
+{
+    double wait_sum = 0.0;
+    double tat_sum  = 0.0;
+
+    for (int i = 0; i < n; i++) {
+        wait_sum += proc[i].waiting_time;
+        tat_sum  += proc[i].turnaround_time;
+    }
+    printf("AVG Waiting : %.2f   AVG TAT : %.2f\n\n",
+           wait_sum / n, tat_sum / n);
+}
 // -----------------------------
 // 비교 함수 타입 정의
 // -----------------------------
@@ -333,125 +400,6 @@ void schedule_rr(Process processes[], int num_processes, int time_quantum) {
             processes[idx].waiting_time = processes[idx].turnaround_time - processes[idx].burst_time;
             completed++;
         }
-    }
-}
-
-// -----------------------------
-// Gantt Chart 출력
-// -----------------------------
-void print_gantt_chart(Process processes[], int num_processes) {
-    printf("\n[Gantt Chart]\n|");
-
-    int time_cursor = processes[0].start_time;
-
-    for (int i = 0; i < num_processes; i++) {
-        // idle 구간이 있다면 출력
-        if (time_cursor < processes[i].start_time) {
-            printf(" Idle |");
-            time_cursor = processes[i].start_time;
-        }
-
-        printf("  P%d  |", processes[i].pid);
-        time_cursor = processes[i].end_time;
-    }
-
-    // 시간 표시
-    printf("\n%d", processes[0].start_time);
-    time_cursor = processes[0].start_time;
-
-    for (int i = 0; i < num_processes; i++) {
-        if (time_cursor < processes[i].start_time) {
-            printf("     %2d", processes[i].start_time); // idle 종료 시점
-            time_cursor = processes[i].start_time;
-        }
-
-        printf("     %2d", processes[i].end_time);
-        time_cursor = processes[i].end_time;
-    }
-
-    printf("\n");
-}
-
-void print_gantt_chart_with_idle_sorted(Process processes[], int num_processes) {
-    Process sorted[MAX_PROCESSES];
-    for (int i = 0; i < num_processes; i++) {
-        sorted[i] = processes[i];
-    }
-
-    // start_time 기준 정렬
-    for (int i = 0; i < num_processes - 1; i++) {
-        for (int j = i + 1; j < num_processes; j++) {
-            if (sorted[i].start_time > sorted[j].start_time) {
-                Process temp = sorted[i];
-                sorted[i] = sorted[j];
-                sorted[j] = temp;
-            }
-        }
-    }
-
-    printf("\n[Gantt Chart (start_time order)]\n|");
-    int time_cursor = sorted[0].start_time;
-
-    for (int i = 0; i < num_processes; i++) {
-        if (time_cursor < sorted[i].start_time) {
-            printf(" Idle |");
-            time_cursor = sorted[i].start_time;
-        }
-
-        printf("  P%d  |", sorted[i].pid);
-        time_cursor = sorted[i].end_time;
-    }
-
-    // 시간 출력
-    printf("\n%d", sorted[0].start_time);
-    time_cursor = sorted[0].start_time;
-    for (int i = 0; i < num_processes; i++) {
-        if (time_cursor < sorted[i].start_time) {
-            printf("     %2d", sorted[i].start_time);
-            time_cursor = sorted[i].start_time;
-        }
-        printf("     %2d", sorted[i].end_time);
-        time_cursor = sorted[i].end_time;
-    }
-    printf("\n");
-}
-
-
-// -----------------------------
-// Evaluate 함수
-// -----------------------------
-void evaluation(Process processes[], int num_processes) {
-    int total_waiting_time = 0;
-    int total_turnaround_time = 0;
-
-    for (int i = 0; i < num_processes; i++) {
-        total_waiting_time += processes[i].waiting_time;
-        total_turnaround_time += processes[i].turnaround_time;
-    }
-
-    double avg_waiting_time = (double) total_waiting_time / num_processes;
-    double avg_turnaround_time = (double) total_turnaround_time / num_processes;
-
-    printf("\n[Evaluation Result]\n");
-    printf("Average Waiting Time     : %.2f\n", avg_waiting_time);
-    printf("Average Turnaround Time  : %.2f\n", avg_turnaround_time);
-}
-
-void print_process_table(Process processes[], int num_processes) {
-    printf("\n[Process Status Table]\n");
-    printf("PID | Arrival | Burst | Start | End  | Waiting | Turnaround | Priority\n");
-    printf("----+---------+-------+-------+------+---------+------------+---------\n");
-
-    for (int i = 0; i < num_processes; i++) {
-        printf("%3d | %7d | %5d | %5d | %4d | %7d | %10d | %8d\n",
-            processes[i].pid,
-            processes[i].arrival_time,
-            processes[i].burst_time,
-            processes[i].start_time,
-            processes[i].end_time,
-            processes[i].waiting_time,
-            processes[i].turnaround_time,
-            processes[i].priority);
     }
 }
 
