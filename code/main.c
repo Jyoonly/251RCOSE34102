@@ -134,7 +134,7 @@ void schedule_fcfs(PCB proc[], int n) {
     int timeline[MAX_TIME] = {0};
     int tl_len = 0;
 
-    /* 도착시간 오름차순 정렬(버블) */
+    // 도착시간 오름차순 정렬(버블) 
     for (int i = 0; i < n - 1; i++)
         for (int j = i + 1; j < n; j++)
             if (proc[i].arrival_time > proc[j].arrival_time) {
@@ -146,7 +146,7 @@ void schedule_fcfs(PCB proc[], int n) {
     int current_time = 0;
 
     for (int i = 0; i < n; i++) {
-        /* CPU가 놀면 idle 기록 */
+        // CPU가 놀면 idle 기록 
         while (current_time < proc[i].arrival_time) {
             timeline[tl_len++] = 0;
             current_time++;
@@ -388,7 +388,7 @@ void schedule_sjf_p(PCB proc[], int n)
         if (proc[sel_index].start_time == -1)
             proc[sel_index].start_time = current_time;
 
-        timeline[tl_len++] = proc[sel_index].pid;  /* 1 tick 실행 */
+        timeline[tl_len++] = proc[sel_index].pid;  // 1 tick 실행
         proc[sel_index].cpu_remaining--;
         current_time++;
 
@@ -440,7 +440,7 @@ void schedule_priority_p(PCB proc[], int n)
         if (proc[sel_index].start_time == -1)
             proc[sel_index].start_time = current_time;
 
-        timeline[tl_len++] = proc[sel_index].pid;  /* 1 tick 실행 */
+        timeline[tl_len++] = proc[sel_index].pid;  // 1 tick 실행
         proc[sel_index].cpu_remaining--;
         current_time++;
 
